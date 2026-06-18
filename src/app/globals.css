@@ -1,0 +1,317 @@
+/* Estilos a nivel de aplicación. Los tokens y componentes vienen de
+   design-system.css. Aquí solo layout/estructura propios de la app. */
+
+html,
+body {
+  min-height: 100%;
+}
+
+/* Contenedor tipo móvil centrado (el DS es mobile-first). */
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: var(--ds-space-5) var(--ds-space-4) var(--ds-space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+}
+
+.app-header__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-title {
+  font-size: var(--ds-font-size-subtitle);
+  line-height: var(--ds-line-height-subtitle);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+
+.app-subtitle {
+  font-size: var(--ds-font-size-body-sm);
+  line-height: var(--ds-line-height-body-sm);
+  color: var(--ds-color-gray-400);
+  margin: 0;
+}
+
+.app-section-label {
+  font-size: var(--ds-font-size-label);
+  line-height: var(--ds-line-height-label);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-color-gray-500);
+  margin: 0 0 var(--ds-space-2);
+}
+
+.muted {
+  color: var(--ds-color-gray-400);
+  font-size: var(--ds-font-size-body-sm);
+  line-height: var(--ds-line-height-body-md);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+/* El DS fija un ancho de 370px en los campos (medida de Figma). Lo hacemos
+   fluido para que se adapten al contenedor en cualquier ancho. */
+.ds-form-field {
+  width: 100%;
+}
+
+/* ── Login ─────────────────────────────────────────────────────────────── */
+.login-card {
+  background: var(--ds-color-white);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-01);
+  padding: var(--ds-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6);
+}
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--ds-space-2);
+}
+
+.login-brand__mark {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-green-100);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--ds-space-2);
+}
+
+.login-hint {
+  text-align: center;
+}
+
+/* ── Card blanca genérica (panel) ──────────────────────────────────────── */
+.panel {
+  background: var(--ds-color-white);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-01);
+  padding: var(--ds-space-5);
+}
+
+/* ── Select nativo con estilo DS ───────────────────────────────────────── */
+.ds-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid var(--ds-color-gray-200);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-white);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-family: var(--ds-font-family);
+  font-size: var(--ds-font-size-body-md);
+  line-height: var(--ds-line-height-body-md);
+  color: var(--ds-color-black);
+}
+.ds-select:focus {
+  outline: none;
+  border-color: var(--ds-color-green-200);
+}
+
+/* ── Cuadrilla / colaboradores ─────────────────────────────────────────── */
+.crew-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-2);
+}
+.crew-head__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-black);
+  color: var(--ds-color-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.crew-head__name {
+  font-size: var(--ds-font-size-body-md);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+
+.colab-card {
+  background: var(--ds-color-white);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-01);
+  padding: var(--ds-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+}
+
+.colab-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+.colab-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ds-color-surface);
+  color: var(--ds-color-gray-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--ds-font-weight-semibold);
+  font-size: var(--ds-font-size-label);
+  flex: 0 0 auto;
+}
+.colab-card__name {
+  font-size: var(--ds-font-size-body-md);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+.colab-card__rol {
+  font-size: var(--ds-font-size-body-sm);
+  color: var(--ds-color-gray-400);
+  margin: 0;
+}
+.colab-total {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+.colab-total__num {
+  font-size: var(--ds-font-size-subtitle);
+  font-weight: var(--ds-font-weight-semibold);
+}
+.colab-total__unit {
+  font-size: var(--ds-font-size-body-sm);
+  color: var(--ds-color-gray-400);
+}
+
+.linea {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.linea__select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.linea__remove {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--ds-color-gray-400);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ds-radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.linea__remove:hover {
+  background: var(--ds-color-surface);
+  color: var(--ds-color-red-100);
+}
+
+.linea-empty {
+  font-size: var(--ds-font-size-body-sm);
+  color: var(--ds-color-gray-400);
+  padding: var(--ds-space-1) 0;
+}
+
+/* ── Stepper de horas ──────────────────────────────────────────────────── */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  flex: 0 0 auto;
+}
+.stepper__btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--ds-color-gray-200);
+  background: var(--ds-color-white);
+  color: var(--ds-color-black);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.stepper__btn:disabled {
+  color: var(--ds-color-gray-300);
+  border-color: var(--ds-color-gray-100);
+  cursor: not-allowed;
+}
+.stepper__btn:not(:disabled):active {
+  background: var(--ds-color-surface);
+}
+.stepper__value {
+  min-width: 28px;
+  text-align: center;
+  font-size: var(--ds-font-size-body-md);
+  font-weight: var(--ds-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Resumen ───────────────────────────────────────────────────────────── */
+.resumen {
+  background: var(--ds-color-white);
+  border-radius: var(--ds-radius-xl);
+  box-shadow: var(--ds-shadow-01);
+  padding: var(--ds-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+}
+.resumen__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--ds-font-size-body-md);
+}
+.resumen__row--total {
+  border-top: 1px solid var(--ds-color-gray-100);
+  padding-top: var(--ds-space-2);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ok-banner {
+  background: var(--ds-color-green-200);
+  color: var(--ds-color-white);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-font-size-body-md);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
