@@ -3,7 +3,6 @@
 // consultas, manteniendo los mismos tipos de `types.ts`.
 
 import type {
-  Usuario,
   Proyecto,
   Etapa,
   Actividad,
@@ -12,34 +11,9 @@ import type {
   Cuadrilla,
 } from "./types";
 
-// ── Usuarios (tabla Usuario) ───────────────────────────────────────────────
-// passwordHash = SHA-256 de la contraseña. Credenciales demo:
-//   admin   / admin123
-//   jperez  / obra2024
-//   mlopez  / cuadrilla1
-export const USUARIOS: Usuario[] = [
-  {
-    id: "u1",
-    usuario: "admin",
-    nombre: "Administrador",
-    passwordHash:
-      "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
-  },
-  {
-    id: "u2",
-    usuario: "jperez",
-    nombre: "Juan Pérez",
-    passwordHash:
-      "a090d3c35f72bcc6b3b8ae1161d52e239971a43b6c88b246857aa939cf96140a",
-  },
-  {
-    id: "u3",
-    usuario: "mlopez",
-    nombre: "María López",
-    passwordHash:
-      "f17efe849c9be3fe53296bc2a7697c6c2e52c22c74987a07ffc078dddce588c5",
-  },
-];
+// Nota: los usuarios ya NO viven acá. El login consulta la tabla real
+// dbo.Usuario en AdelanteSBX (ver src/app/api/auth/login/route.ts).
+// El resto de catálogos sigue siendo mock hasta conectarlos.
 
 // ── Proyectos ───────────────────────────────────────────────────────────────
 export const PROYECTOS: Proyecto[] = [

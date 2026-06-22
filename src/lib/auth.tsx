@@ -1,11 +1,8 @@
 "use client";
 
-// Autenticación mock (sin base de datos). Valida usuario + contraseña contra
-// la tabla `Usuario` comparando el hash SHA-256 de la contraseña ingresada con
-// el `passwordHash` almacenado. La sesión se persiste en localStorage.
-//
-// Cuando exista backend real, basta con reemplazar `login()` por una llamada a
-// la API y mantener la misma forma del contexto.
+// Autenticación contra la API real (/api/auth/*). La sesión vive en una cookie
+// httpOnly que setea el servidor; el cliente solo conoce los datos no sensibles
+// del usuario, que rehidrata con GET /api/auth/me al montar.
 
 import React, {
   createContext,
@@ -15,68 +12,87 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { USUARIOS } from "./mock-data";
-import type { Usuario } from "./types";
 
-/** Usuario en sesión, sin el hash. */
-export type SesionUsuario = Pick<Usuario, "id" | "usuario" | "nombre">;
+export interface SesionUsuario {
+  id: number;
+  username: string;
+  nombre: string;
+  rol: string | null;
+}
+
+export interface LoginResult {
+  ok: boolean;
+  /** Mensaje a mostrar cuando falla (credenciales, conexión, config…). */
+  message?: string;
+}
 
 interface AuthContextValue {
   usuario: SesionUsuario | null;
   cargando: boolean;
-  login: (usuario: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<void>;
 }
-
-const STORAGE_KEY = "h4.sesion";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-async function sha256Hex(texto: string): Promise<string> {
-  const data = new TextEncoder().encode(texto);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  // Rehidratar sesión desde localStorage al montar.
+  // Rehidratar sesión desde la cookie al montar.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setUsuario(JSON.parse(raw) as SesionUsuario);
-    } catch {
-      // ignorar JSON inválido
-    }
-    setCargando(false);
-  }, []);
-
-  const login = useCallback(async (nombreUsuario: string, password: string) => {
-    const registro = USUARIOS.find(
-      (u) => u.usuario.toLowerCase() === nombreUsuario.trim().toLowerCase(),
-    );
-    if (!registro) return false;
-
-    const hash = await sha256Hex(password);
-    if (hash !== registro.passwordHash) return false;
-
-    const sesion: SesionUsuario = {
-      id: registro.id,
-      usuario: registro.usuario,
-      nombre: registro.nombre,
+    let activo = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (activo && res.ok) setUsuario((await res.json()) as SesionUsuario);
+      } catch {
+        // sin sesión
+      } finally {
+        if (activo) setCargando(false);
+      }
+    })();
+    return () => {
+      activo = false;
     };
-    setUsuario(sesion);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sesion));
-    return true;
   }, []);
 
-  const logout = useCallback(() => {
-    setUsuario(null);
-    localStorage.removeItem(STORAGE_KEY);
+  const login = useCallback(
+    async (username: string, password: string): Promise<LoginResult> => {
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+      } catch {
+        return { ok: false, message: "No se pudo contactar al servidor" };
+      }
+
+      if (res.ok) {
+        const data = (await res.json()) as { user: SesionUsuario };
+        setUsuario(data.user);
+        return { ok: true };
+      }
+
+      // 401 = credenciales; otros (500…) = config/conexión: mostramos el motivo.
+      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      const message =
+        res.status === 401
+          ? "Usuario o contraseña incorrectos"
+          : (body?.message ?? `Error del servidor (${res.status})`);
+      return { ok: false, message };
+    },
+    [],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      setUsuario(null);
+    }
   }, []);
 
   const value = useMemo(

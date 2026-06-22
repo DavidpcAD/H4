@@ -4,11 +4,11 @@
 // Cada Actividad tiene asociada una Cuadrilla, y la Cuadrilla agrupa
 // a los Colaboradores a los que se les asignan horas.
 
+/** Fila de dbo.Usuario en AdelanteSBX. */
 export interface Usuario {
-  id: string;
-  usuario: string;
-  nombre: string;
-  /** Hash SHA-256 (hex) de la contraseña. No se guarda la contraseña en claro. */
+  idUsuario: number;
+  username: string;
+  /** Por ahora viene en texto plano; migrará a hash más adelante. */
   passwordHash: string;
 }
 

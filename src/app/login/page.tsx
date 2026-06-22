@@ -23,12 +23,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setEnviando(true);
-    const ok = await login(nombreUsuario, password);
+    const result = await login(nombreUsuario, password);
     setEnviando(false);
-    if (ok) {
+    if (result.ok) {
       router.replace("/");
     } else {
-      setError("Usuario o contraseña incorrectos");
+      setError(result.message ?? "Usuario o contraseña incorrectos");
     }
   }
 
@@ -71,10 +71,6 @@ export default function LoginPage() {
             fullWidth
           />
         </form>
-
-        <p className="muted login-hint">
-          Demo: <strong>admin</strong> / admin123
-        </p>
       </div>
     </main>
   );
