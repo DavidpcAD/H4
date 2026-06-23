@@ -5,8 +5,8 @@
 import { useState } from "react";
 import "./marcaje.css";
 import { T } from "./tokens";
-import { CREW } from "./mock";
-import { Btn, CapsLabel, Field, Input, SectionHeader, Select, WorkerRow } from "./ui";
+import { CREW, type CrewWorker } from "./mock";
+import { Btn, CapsLabel, Field, SectionHeader, Select, TimeInput, WorkerRow } from "./ui";
 
 export interface Subpartida {
   id: number;
@@ -29,24 +29,27 @@ export interface Obra {
 }
 
 export function ScreenReasignar({
-  selectedIds,
+  seleccionados = [],
   subpartidas = [],
   proyectos = [],
   obras = [],
   onBack,
   onConfirm,
 }: {
-  selectedIds: string[];
+  seleccionados?: CrewWorker[];
   subpartidas?: Subpartida[];
   proyectos?: Proyecto[];
   obras?: Obra[];
   onBack?: () => void;
   onConfirm?: () => void;
 }) {
-  // Si no llegan IDs (acceso directo), se muestran los 3 primeros como demo.
-  const ids = selectedIds.length > 0 ? selectedIds : CREW.slice(0, 3).map((w) => w.id);
-  const selected = CREW.filter((w) => ids.includes(w.id));
+  // Trabajadores ya resueltos (con nombre real). Si no llegan (acceso directo),
+  // se muestran 3 del mock como demo.
+  const selected = seleccionados.length > 0 ? seleccionados : CREW.slice(0, 3);
   const n = selected.length;
+
+  // Hora del cambio (selector).
+  const [hora, setHora] = useState<string>("11:00");
 
   // Condominio = Proyecto (default: el primero).
   const [proyId, setProyId] = useState<string>("");
@@ -132,7 +135,9 @@ export function ScreenReasignar({
               options={subpartidas.map((s) => ({ value: String(s.id), label: `${s.codigo} — ${s.nombre}` }))}
             />
           </Field>
-          <Field label="Hora del cambio" hint="Última actividad: 10:54"><Input value="11:00" mono /></Field>
+          <Field label="Hora del cambio" hint="Última actividad: 10:54">
+            <TimeInput value={hora} onChange={setHora} />
+          </Field>
         </div>
 
         {/* Resumen */}
@@ -140,9 +145,9 @@ export function ScreenReasignar({
           <CapsLabel style={{ marginBottom: 8 }}>RESUMEN</CapsLabel>
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", rowGap: 6, columnGap: 10 }}>
             <div style={{ fontSize: 12, color: T.g700 }}>Cierre tramo actual</div>
-            <div style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: "right" }}>11:00</div>
+            <div style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: "right" }}>{hora}</div>
             <div style={{ fontSize: 12, color: T.g700 }}>Inicio tramo nuevo</div>
-            <div style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: "right" }}>11:00</div>
+            <div style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 600, color: T.ink, textAlign: "right" }}>{hora}</div>
             <div style={{ fontSize: 12, color: T.g700 }}>Destino</div>
             <div style={{ fontFamily: T.fontMono, fontSize: 13, fontWeight: 700, color: T.orange, textAlign: "right" }}>{destinoObra} · {destinoCodigo}</div>
           </div>

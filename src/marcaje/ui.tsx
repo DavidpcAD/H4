@@ -228,6 +228,29 @@ export function Select({
   );
 }
 
+export function TimeInput({ value, onChange, focus = false }: { value: string; onChange: (value: string) => void; focus?: boolean }) {
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", height: 44, padding: "0 12px",
+        background: T.white,
+        border: `${focus ? 2 : 1}px solid ${focus ? T.orange : T.g300}`,
+        borderRadius: T.rInput, boxShadow: focus ? T.shFocus : "none",
+      }}
+    >
+      <input
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          flex: 1, border: "none", outline: "none", background: "transparent",
+          fontFamily: T.fontMono, fontSize: 14, fontWeight: 600, color: T.ink,
+        }}
+      />
+    </div>
+  );
+}
+
 export function initials(name: string): string {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
 }

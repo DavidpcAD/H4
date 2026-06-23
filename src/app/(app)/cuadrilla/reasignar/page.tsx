@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScreenReasignar, type Subpartida, type Proyecto, type Obra } from "@/marcaje/ScreenReasignar";
+import { simularCrew, type ColaboradorCuadrilla } from "@/marcaje/crew";
+import type { CrewWorker } from "@/marcaje/mock";
 
 function ReasignarInner() {
   const router = useRouter();
@@ -12,6 +14,7 @@ function ReasignarInner() {
   const [subpartidas, setSubpartidas] = useState<Subpartida[]>([]);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [obras, setObras] = useState<Obra[]>([]);
+  const [seleccionados, setSeleccionados] = useState<CrewWorker[]>([]);
 
   useEffect(() => {
     let activo = true;
@@ -29,14 +32,29 @@ function ReasignarInner() {
     cargar<Subpartida>("/api/subpartidas", "subpartidas", setSubpartidas);
     cargar<Proyecto>("/api/proyectos", "proyectos", setProyectos);
     cargar<Obra>("/api/obras", "obras", setObras);
+
+    // Resolver los trabajadores seleccionados con la cuadrilla real del usuario.
+    (async () => {
+      try {
+        const res = await fetch("/api/mi-cuadrilla", { cache: "no-store" });
+        if (activo && res.ok) {
+          const data = (await res.json()) as { colaboradores: ColaboradorCuadrilla[] };
+          const crew = simularCrew(data.colaboradores);
+          setSeleccionados(crew.filter((w) => ids.includes(w.id)));
+        }
+      } catch {
+        // sin cuadrilla
+      }
+    })();
     return () => {
       activo = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <ScreenReasignar
-      selectedIds={ids}
+      seleccionados={seleccionados}
       subpartidas={subpartidas}
       proyectos={proyectos}
       obras={obras}
