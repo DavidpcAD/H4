@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ScreenCuadrilla, type ColaboradorCuadrilla } from "@/marcaje/ScreenCuadrilla";
+import { ScreenCuadrilla, type MiembroEstado } from "@/marcaje/ScreenCuadrilla";
 import { useAuth } from "@/lib/auth";
 import { homeForRol } from "@/lib/roles";
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 export default function CuadrillaPage() {
   const { usuario, logout } = useAuth();
   const router = useRouter();
-  const [colaboradores, setColaboradores] = useState<ColaboradorCuadrilla[]>([]);
+  const [colaboradores, setColaboradores] = useState<MiembroEstado[]>([]);
 
   // Si el rol no corresponde a esta pantalla, mandar a la suya.
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function CuadrillaPage() {
       try {
         const res = await fetch("/api/mi-cuadrilla", { cache: "no-store" });
         if (activo && res.ok) {
-          const data = (await res.json()) as { colaboradores: ColaboradorCuadrilla[] };
+          const data = (await res.json()) as { colaboradores: MiembroEstado[] };
           setColaboradores(data.colaboradores);
         }
       } catch {
@@ -44,6 +44,9 @@ export default function CuadrillaPage() {
       onLogout={() => logout()}
       onReasignar={(ids) =>
         router.push(`/cuadrilla/reasignar?ids=${encodeURIComponent(ids.join(","))}`)
+      }
+      onPrestar={(ids) =>
+        router.push(`/cuadrilla/prestar?ids=${encodeURIComponent(ids.join(","))}`)
       }
     />
   );

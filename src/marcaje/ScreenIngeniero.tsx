@@ -7,15 +7,26 @@
 import "./marcaje.css";
 import { T, PROJECTS, type Project } from "./tokens";
 import { PROJECT_STATS, type ProjectStat } from "./mock";
-import { AdelanteLogo, Avatar, StatCard } from "./ui";
+import { AdelanteLogo, StatCard, UserMenu } from "./ui";
 
-export function ScreenIngeniero({ nombre = "Ing. José Vargas", onLogout }: { nombre?: string; onLogout?: () => void }) {
+export function ScreenIngeniero({
+  nombre = "Ing. José Vargas",
+  proyectos,
+  onLogout,
+}: {
+  nombre?: string;
+  proyectos?: ProjectStat[];
+  onLogout?: () => void;
+}) {
   const cardBg = T.white;
   const border = T.g200;
 
-  const stats = PROJECT_STATS;
+  // Datos reales por proyecto desde la BD; si aún no cargan, se usa el mock
+  // para no dejar la pantalla vacía.
+  const stats = proyectos && proyectos.length > 0 ? proyectos : PROJECT_STATS;
   const total = stats.reduce((s, p) => s + p.workersToday, 0);
-  const expected = stats.reduce((s, p) => s + p.workersExpected, 0);
+  const hasExpected = stats.every((p) => typeof p.workersExpected === "number");
+  const expected = stats.reduce((s, p) => s + (p.workersExpected ?? 0), 0);
   const housesActive = stats.reduce((s, p) => s + p.activeHouses, 0);
 
   const ini = nombre.replace(/^Ing\.?\s*/i, "").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -32,13 +43,13 @@ export function ScreenIngeniero({ nombre = "Ing. José Vargas", onLogout }: { no
             </div>
             <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.4, marginTop: 8 }}>{nombre}</div>
           </div>
-          <Avatar initials={ini} size={36} dark onClick={onLogout} title="Cerrar sesión" />
+          <UserMenu initials={ini} nombre={nombre} rol="INGENIERO RESIDENTE" size={36} dark onLogout={onLogout} />
         </div>
       </div>
 
       {/* Stats globales (sin ALERTAS) */}
       <div style={{ padding: "12px 14px 6px", display: "flex", gap: 8 }}>
-        <StatCard dark label="EN OBRA" value={total} sub={`/${expected} esperados`} />
+        <StatCard dark label="EN OBRA" value={total} sub={hasExpected ? `/${expected} esperados` : undefined} />
         <StatCard label="CASAS" value={housesActive} />
       </div>
 
@@ -52,7 +63,7 @@ export function ScreenIngeniero({ nombre = "Ing. José Vargas", onLogout }: { no
       {/* Lista de proyectos */}
       <div className="mk-scroll" style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
         {stats.map((s) => (
-          <ProjectCard key={s.code} stat={s} project={PROJECTS[s.code]} cardBg={cardBg} border={border} />
+          <ProjectCard key={s.code} stat={s} project={projectOf(s)} cardBg={cardBg} border={border} />
         ))}
         <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.g500, textAlign: "center", letterSpacing: 1 }}>
           — Tap en un proyecto para ver casas activas —
@@ -62,9 +73,21 @@ export function ScreenIngeniero({ nombre = "Ing. José Vargas", onLogout }: { no
   );
 }
 
+// Proyecto para pintar la tarjeta: usa nombre/color que vienen del dato real;
+// si no, cae al catálogo estático PROJECTS por código.
+function projectOf(s: ProjectStat): Project {
+  const base: Project = PROJECTS[s.code] ?? { code: s.code, name: s.code, color: T.g500, colorBg: T.g200, type: "condo" };
+  return {
+    ...base,
+    name: s.name ?? base.name,
+    color: s.color ?? base.color,
+  };
+}
+
 function ProjectCard({ stat, project, cardBg, border }: { stat: ProjectStat; project: Project; cardBg: string; border: string }) {
   const isInactive = stat.workersToday === 0;
-  const delta = stat.workersToday - stat.workersExpected;
+  const hasExpected = typeof stat.workersExpected === "number";
+  const delta = hasExpected ? stat.workersToday - (stat.workersExpected as number) : 0;
   const deltaColor = delta < 0 ? T.red : delta > 0 ? T.blue : T.green;
 
   return (

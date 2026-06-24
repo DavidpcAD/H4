@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScreenReasignar, type Subpartida, type Proyecto, type Obra } from "@/marcaje/ScreenReasignar";
-import { simularCrew, type ColaboradorCuadrilla } from "@/marcaje/crew";
+import { toCrewList, type MiembroEstado } from "@/marcaje/crew";
 import type { CrewWorker } from "@/marcaje/mock";
 
 function ReasignarInner() {
@@ -38,8 +38,8 @@ function ReasignarInner() {
       try {
         const res = await fetch("/api/mi-cuadrilla", { cache: "no-store" });
         if (activo && res.ok) {
-          const data = (await res.json()) as { colaboradores: ColaboradorCuadrilla[] };
-          const crew = simularCrew(data.colaboradores);
+          const data = (await res.json()) as { colaboradores: MiembroEstado[] };
+          const crew = toCrewList(data.colaboradores);
           setSeleccionados(crew.filter((w) => ids.includes(w.id)));
         }
       } catch {

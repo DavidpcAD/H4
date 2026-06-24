@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { T } from "./tokens";
 import type { CrewWorker } from "./mock";
 
@@ -47,6 +47,179 @@ export function Avatar({ initials, size = 36, accent = false, dark = false, onCl
       }}
     >
       {initials}
+    </div>
+  );
+}
+
+// Avatar con menú desplegable: lista de notificaciones del usuario + cerrar
+// sesión. Se usa en los headers de Jefe de Cuadrilla e Ingeniero.
+export interface Notificacion {
+  id: string;
+  tipo: string;
+  titulo: string;
+  mensaje: string | null;
+  esLeida: boolean;
+  fechaCreacionUtc: string;
+}
+
+function tiempoRelativo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "ahora";
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.floor(h / 24);
+  return `hace ${d} d`;
+}
+
+export function UserMenu({
+  initials,
+  nombre,
+  rol,
+  size = 36,
+  dark = false,
+  onLogout,
+}: {
+  initials: string;
+  nombre?: string;
+  rol?: string;
+  size?: number;
+  dark?: boolean;
+  onLogout?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState<Notificacion[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  // Carga las notificaciones reales al abrir el menú.
+  useEffect(() => {
+    if (!open) return;
+    let activo = true;
+    setCargando(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/notificaciones", { cache: "no-store" });
+        const data = (await res.json()) as { notificaciones: Notificacion[] };
+        if (activo) setNotifs(res.ok ? data.notificaciones : []);
+      } catch {
+        if (activo) setNotifs([]);
+      } finally {
+        if (activo) setCargando(false);
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [open]);
+
+  const sinLeer = notifs?.filter((n) => !n.esLeida).length ?? 0;
+
+  return (
+    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
+      <div style={{ position: "relative" }}>
+        <Avatar
+          initials={initials}
+          size={size}
+          dark={dark}
+          onClick={() => setOpen((o) => !o)}
+          title="Cuenta"
+        />
+        {sinLeer > 0 && !open && (
+          <span
+            style={{
+              position: "absolute", top: -2, right: -2, minWidth: 16, height: 16,
+              padding: "0 4px", borderRadius: 999, background: T.red, color: T.white,
+              fontFamily: T.fontMono, fontSize: 9, fontWeight: 800, lineHeight: "16px",
+              textAlign: "center", border: `2px solid ${dark ? T.black : T.white}`,
+            }}
+          >
+            {sinLeer}
+          </span>
+        )}
+      </div>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute", top: size + 8, right: 0, width: 280, zIndex: 50,
+            background: T.white, color: T.ink, border: `1px solid ${T.g200}`,
+            borderRadius: T.rCard, boxShadow: "0 12px 32px rgba(0,0,0,0.18)", overflow: "hidden",
+          }}
+        >
+          {(nombre || rol) && (
+            <div style={{ padding: "12px 14px", borderBottom: `1px solid ${T.g200}` }}>
+              {nombre && <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: -0.3, color: T.ink }}>{nombre}</div>}
+              {rol && <div style={{ fontFamily: T.fontMono, fontSize: 9, color: T.g700, fontWeight: 700, letterSpacing: 1.5, marginTop: 3 }}>{rol}</div>}
+            </div>
+          )}
+
+          <div style={{ padding: "10px 14px 6px" }}>
+            <CapsLabel style={{ marginBottom: 8 }}>Notificaciones</CapsLabel>
+            <div style={{ maxHeight: 260, overflowY: "auto", margin: "0 -4px" }}>
+              {cargando && notifs === null ? (
+                <div style={{ padding: "14px 4px", fontSize: 12, color: T.g500, fontFamily: T.fontMono }}>Cargando…</div>
+              ) : notifs && notifs.length > 0 ? (
+                notifs.map((n) => (
+                  <div
+                    key={n.id}
+                    style={{
+                      display: "flex", gap: 10, padding: "9px 8px", borderRadius: 8,
+                      background: n.esLeida ? "transparent" : T.orangeBg,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", marginTop: 5, flexShrink: 0, background: n.esLeida ? T.g300 : T.orange }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: T.fontUI, fontSize: 13, fontWeight: 700, color: T.ink }}>{n.titulo}</div>
+                      {n.mensaje && <div style={{ fontSize: 11.5, color: T.g700, marginTop: 2, lineHeight: 1.35 }}>{n.mensaje}</div>}
+                      <div style={{ fontFamily: T.fontMono, fontSize: 9.5, color: T.g500, marginTop: 4, letterSpacing: 0.3 }}>{tiempoRelativo(n.fechaCreacionUtc)}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: "16px 4px", textAlign: "center", fontSize: 12.5, color: T.g500, fontFamily: T.fontUI }}>Sin notificaciones</div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ borderTop: `1px solid ${T.g200}`, padding: 8 }}>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onLogout?.();
+              }}
+              style={{
+                width: "100%", height: 40, display: "flex", alignItems: "center",
+                justifyContent: "center", gap: 8, background: T.white, color: T.red,
+                border: `1px solid ${T.g300}`, borderRadius: T.rInput,
+                fontFamily: T.fontUI, fontWeight: 700, fontSize: 13.5, cursor: "pointer",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6" stroke={T.red} strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M10.5 11l3-3-3-3M13 8H6" stroke={T.red} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -108,6 +281,30 @@ export function WorkerRow({ w, selected = false, onClick, dense = false }: { w: 
           </svg>
         </div>
       )}
+    </div>
+  );
+}
+
+// Fila compacta para la vista agrupada por casa (no repite la ubicación,
+// que ya está en el header de la casa).
+export function HouseWorkerRow({ w, selected = false, onClick }: { w: CrewWorker; selected?: boolean; onClick?: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+        background: selected ? T.orangeBg : "transparent",
+        border: `1px solid ${selected ? T.orange : "transparent"}`,
+        borderRadius: 8, cursor: onClick ? "pointer" : "default", transition: "all 150ms",
+      }}
+    >
+      <StatusDot status={w.dot} />
+      <div style={{ flex: 1, minWidth: 0, fontFamily: T.fontUI, fontWeight: 600, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {w.name}
+      </div>
+      <div style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 600, color: T.g700, letterSpacing: -0.2, flexShrink: 0 }}>
+        {w.dur}
+      </div>
     </div>
   );
 }
@@ -248,6 +445,30 @@ export function TimeInput({ value, onChange, focus = false }: { value: string; o
         }}
       />
     </div>
+  );
+}
+
+export function DateInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: 44, padding: "0 12px", background: T.white, border: `1px solid ${T.g300}`, borderRadius: T.rInput }}>
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: T.fontMono, fontSize: 13, fontWeight: 600, color: T.ink }}
+      />
+    </div>
+  );
+}
+
+export function Textarea({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{ width: "100%", minHeight: 64, padding: "10px 12px", background: T.white, border: `1px solid ${T.g300}`, borderRadius: T.rInput, fontFamily: T.fontUI, fontSize: 14, color: T.ink, lineHeight: 1.4, resize: "vertical", outline: "none" }}
+    />
   );
 }
 

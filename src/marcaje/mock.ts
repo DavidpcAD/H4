@@ -16,10 +16,12 @@ export interface CrewWorker {
 
 export interface ProjectStat {
   code: string;
+  name?: string;
+  color?: string;
   activeHouses: number;
   totalHouses: number;
   workersToday: number;
-  workersExpected: number;
+  workersExpected?: number;
   foremen: number;
 }
 

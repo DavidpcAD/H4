@@ -1,9 +1,12 @@
 /* =============================================================================
-   003 — Cuadrillas H4 + datos de prueba (departamento, puesto, obreros, asignaciones)
-   Base: AdelanteSBX (PRUEBAS). Idempotente. Correr con login db_owner (davidpc).
+   003 — Cuadrilla / CuadrillaMiembro + datos de prueba (departamento, puesto,
+   obreros, asignaciones). Base: AdelanteSBX (PRUEBAS). Idempotente. db_owner.
+
+   Nota: las tablas usan el nombre estándar (Cuadrilla / CuadrillaMiembro). En
+   BD ya migrada (post-008) los CREATE se saltan y solo corre el seed.
 
    Hace:
-   1. Crea dbo.CuadrillasH4 y dbo.CuadrillaMiembrosH4 (mismas columnas que leg.*).
+   1. Crea dbo.Cuadrilla y dbo.CuadrillaMiembro (mismas columnas que leg.*).
    2. Agrega el Departamento "Administración de Obra".
    3. Agrega el Puesto "Obrero" en ese departamento.
    4. Crea 6 colaboradores obreros.
@@ -13,34 +16,34 @@
    ============================================================================= */
 
 -- 1) Tablas (mismas columnas/PK/IDENTITY/defaults que las leg.*)
-IF OBJECT_ID('dbo.CuadrillasH4', 'U') IS NULL
+IF OBJECT_ID('dbo.Cuadrilla', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.CuadrillasH4 (
+    CREATE TABLE dbo.Cuadrilla (
         IDCuadrilla   INT IDENTITY(1,1) NOT NULL,
         Nombre        NVARCHAR(200)     NOT NULL,
         IDProyecto    INT               NOT NULL,
         TaskNoBC      NVARCHAR(40)      NULL,
         IDEncargado   INT               NOT NULL,
-        Capacidad     INT               NOT NULL CONSTRAINT DF_CuadrillasH4_Capacidad     DEFAULT ((25)),
-        Activo        BIT               NOT NULL CONSTRAINT DF_CuadrillasH4_Activo         DEFAULT ((1)),
-        FechaCreacion DATETIME          NOT NULL CONSTRAINT DF_CuadrillasH4_FechaCreacion  DEFAULT (GETDATE()),
+        Capacidad     INT               NOT NULL CONSTRAINT df_cuadrilla_capacidad     DEFAULT ((25)),
+        Activo        BIT               NOT NULL CONSTRAINT df_cuadrilla_activo         DEFAULT ((1)),
+        FechaCreacion DATETIME          NOT NULL CONSTRAINT df_cuadrilla_fechaCreacion  DEFAULT (GETDATE()),
         CreadoPor     INT               NULL,
-        CONSTRAINT PK_CuadrillasH4 PRIMARY KEY CLUSTERED (IDCuadrilla)
+        CONSTRAINT pk_cuadrilla PRIMARY KEY CLUSTERED (IDCuadrilla)
     );
 END
 GO
 
-IF OBJECT_ID('dbo.CuadrillaMiembrosH4', 'U') IS NULL
+IF OBJECT_ID('dbo.CuadrillaMiembro', 'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.CuadrillaMiembrosH4 (
+    CREATE TABLE dbo.CuadrillaMiembro (
         IDCuadMiembro INT IDENTITY(1,1) NOT NULL,
         IDCuadrilla   INT               NOT NULL,
         IDCol         INT               NOT NULL,
-        FechaIngreso  DATETIME          NOT NULL CONSTRAINT DF_CuadrillaMiembrosH4_FechaIngreso DEFAULT (GETDATE()),
+        FechaIngreso  DATETIME          NOT NULL CONSTRAINT df_cuadrillaMiembro_fechaIngreso DEFAULT (GETDATE()),
         FechaSalida   DATETIME          NULL,
         AsignadoPor   INT               NULL,
-        Activo        BIT               NOT NULL CONSTRAINT DF_CuadrillaMiembrosH4_Activo       DEFAULT ((1)),
-        CONSTRAINT PK_CuadrillaMiembrosH4 PRIMARY KEY CLUSTERED (IDCuadMiembro)
+        Activo        BIT               NOT NULL CONSTRAINT df_cuadrillaMiembro_activo       DEFAULT ((1)),
+        CONSTRAINT pk_cuadrillaMiembro PRIMARY KEY CLUSTERED (IDCuadMiembro)
     );
 END
 GO
@@ -72,15 +75,15 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Colaborador WHERE creadoPor = N'seed-obreros-h4
         (1, @idPuestoObrero, N'Diego',  N'Calvo',  N'Brenes',  N'OBR-H4-06', N'8888-0006', 1, SYSUTCDATETIME(), N'seed-obreros-h4');
 
 -- 5) Cuadrillas: encargadas por el colaborador del usuario 6 (carlos=6) y del 5 (jerson=5)
-IF NOT EXISTS (SELECT 1 FROM dbo.CuadrillasH4 WHERE Nombre = N'Cuadrilla Carlos')
-    INSERT INTO dbo.CuadrillasH4 (Nombre, IDProyecto, IDEncargado, CreadoPor)
+IF NOT EXISTS (SELECT 1 FROM dbo.Cuadrilla WHERE Nombre = N'Cuadrilla Carlos')
+    INSERT INTO dbo.Cuadrilla (Nombre, IDProyecto, IDEncargado, CreadoPor)
     VALUES (N'Cuadrilla Carlos', 2, 6, NULL);
-SELECT @cu1 = IDCuadrilla FROM dbo.CuadrillasH4 WHERE Nombre = N'Cuadrilla Carlos';
+SELECT @cu1 = IDCuadrilla FROM dbo.Cuadrilla WHERE Nombre = N'Cuadrilla Carlos';
 
-IF NOT EXISTS (SELECT 1 FROM dbo.CuadrillasH4 WHERE Nombre = N'Cuadrilla Jerson')
-    INSERT INTO dbo.CuadrillasH4 (Nombre, IDProyecto, IDEncargado, CreadoPor)
+IF NOT EXISTS (SELECT 1 FROM dbo.Cuadrilla WHERE Nombre = N'Cuadrilla Jerson')
+    INSERT INTO dbo.Cuadrilla (Nombre, IDProyecto, IDEncargado, CreadoPor)
     VALUES (N'Cuadrilla Jerson', 1, 5, NULL);
-SELECT @cu2 = IDCuadrilla FROM dbo.CuadrillasH4 WHERE Nombre = N'Cuadrilla Jerson';
+SELECT @cu2 = IDCuadrilla FROM dbo.Cuadrilla WHERE Nombre = N'Cuadrilla Jerson';
 
 -- 6) Asignar obreros: los primeros 3 a la cuadrilla de carlos, los otros 3 a la de jerson
 ;WITH obreros AS (
@@ -88,16 +91,16 @@ SELECT @cu2 = IDCuadrilla FROM dbo.CuadrillasH4 WHERE Nombre = N'Cuadrilla Jerso
     FROM dbo.Colaborador
     WHERE creadoPor = N'seed-obreros-h4'
 )
-INSERT INTO dbo.CuadrillaMiembrosH4 (IDCuadrilla, IDCol)
+INSERT INTO dbo.CuadrillaMiembro (IDCuadrilla, IDCol)
 SELECT CASE WHEN o.rn <= 3 THEN @cu1 ELSE @cu2 END, o.idColaborador
 FROM obreros o
-WHERE NOT EXISTS (SELECT 1 FROM dbo.CuadrillaMiembrosH4 m WHERE m.IDCol = o.idColaborador);
+WHERE NOT EXISTS (SELECT 1 FROM dbo.CuadrillaMiembro m WHERE m.IDCol = o.idColaborador);
 GO
 
 -- Verificación
 SELECT c.IDCuadrilla, c.Nombre, c.IDEncargado, COUNT(m.IDCuadMiembro) AS miembros
-FROM dbo.CuadrillasH4 c
-LEFT JOIN dbo.CuadrillaMiembrosH4 m ON m.IDCuadrilla = c.IDCuadrilla
+FROM dbo.Cuadrilla c
+LEFT JOIN dbo.CuadrillaMiembro m ON m.IDCuadrilla = c.IDCuadrilla
 GROUP BY c.IDCuadrilla, c.Nombre, c.IDEncargado
 ORDER BY c.IDCuadrilla;
 GO
