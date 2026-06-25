@@ -10,8 +10,8 @@ interface CuadrillaRow {
   lider: string | null;
 }
 
-// Lista de cuadrillas activas con su líder (encargado). Para elegir destino de
-// un préstamo se selecciona al líder, que mapea a su cuadrilla (id).
+// Lista de cuadrillas activas con su líder (usuario encargado). Para elegir
+// destino de un préstamo se selecciona al líder, que mapea a su cuadrilla (id).
 export async function GET() {
   try {
     const s = await getSession();
@@ -20,11 +20,11 @@ export async function GET() {
     const pool = await getPool();
     const r = await pool.request().query<CuadrillaRow>(`
       SELECT c.IDCuadrilla AS id, c.Nombre AS nombre,
-             col.calcNombreCompleto AS lider
+             enc.username AS lider
       FROM dbo.Cuadrilla c
-      LEFT JOIN dbo.Colaborador col ON col.idColaborador = c.IDEncargado
+      LEFT JOIN dbo.Usuario enc ON enc.idColaborador = c.IDEncargado
       WHERE c.Activo = 1
-      ORDER BY col.calcNombreCompleto
+      ORDER BY enc.username
     `);
 
     return ok({ cuadrillas: r.recordset });

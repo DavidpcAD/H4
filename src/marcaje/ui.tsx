@@ -58,8 +58,20 @@ export interface Notificacion {
   tipo: string;
   titulo: string;
   mensaje: string | null;
+  idReferencia: string | null;
   esLeida: boolean;
   fechaCreacionUtc: string;
+}
+
+interface PrestamoDetalle {
+  idPrestamo: string;
+  estado: string;
+  fechaDesde: string;
+  fechaHasta: string;
+  motivo: string;
+  cuadrillaOrigen: string;
+  solicitante: string | null;
+  colaboradores: { id: number; nombre: string }[];
 }
 
 function tiempoRelativo(iso: string): string {
@@ -91,7 +103,26 @@ export function UserMenu({
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notificacion[] | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [prestamoId, setPrestamoId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const recargarNotifs = async () => {
+    try {
+      const res = await fetch("/api/notificaciones", { cache: "no-store" });
+      const data = (await res.json()) as { notificaciones: Notificacion[] };
+      setNotifs(res.ok ? data.notificaciones : []);
+    } catch {
+      setNotifs([]);
+    }
+  };
+
+  // Al tocar una notificación de solicitud de préstamo, abrir el popup.
+  const abrirNotif = (n: Notificacion) => {
+    if (n.tipo === "PrestamoSolicitud" && n.idReferencia) {
+      setOpen(false);
+      setPrestamoId(n.idReferencia);
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -175,22 +206,31 @@ export function UserMenu({
               {cargando && notifs === null ? (
                 <div style={{ padding: "14px 4px", fontSize: 12, color: T.g500, fontFamily: T.fontMono }}>Cargando…</div>
               ) : notifs && notifs.length > 0 ? (
-                notifs.map((n) => (
-                  <div
-                    key={n.id}
-                    style={{
-                      display: "flex", gap: 10, padding: "9px 8px", borderRadius: 8,
-                      background: n.esLeida ? "transparent" : T.orangeBg,
-                    }}
-                  >
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", marginTop: 5, flexShrink: 0, background: n.esLeida ? T.g300 : T.orange }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontFamily: T.fontUI, fontSize: 13, fontWeight: 700, color: T.ink }}>{n.titulo}</div>
-                      {n.mensaje && <div style={{ fontSize: 11.5, color: T.g700, marginTop: 2, lineHeight: 1.35 }}>{n.mensaje}</div>}
-                      <div style={{ fontFamily: T.fontMono, fontSize: 9.5, color: T.g500, marginTop: 4, letterSpacing: 0.3 }}>{tiempoRelativo(n.fechaCreacionUtc)}</div>
+                notifs.map((n) => {
+                  const accionable = n.tipo === "PrestamoSolicitud" && !!n.idReferencia;
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={accionable ? () => abrirNotif(n) : undefined}
+                      role={accionable ? "button" : undefined}
+                      style={{
+                        display: "flex", gap: 10, padding: "9px 8px", borderRadius: 8,
+                        background: n.esLeida ? "transparent" : T.orangeBg,
+                        cursor: accionable ? "pointer" : "default",
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", marginTop: 5, flexShrink: 0, background: n.esLeida ? T.g300 : T.orange }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: T.fontUI, fontSize: 13, fontWeight: 700, color: T.ink }}>{n.titulo}</div>
+                        {n.mensaje && <div style={{ fontSize: 11.5, color: T.g700, marginTop: 2, lineHeight: 1.35 }}>{n.mensaje}</div>}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                          <div style={{ fontFamily: T.fontMono, fontSize: 9.5, color: T.g500, letterSpacing: 0.3 }}>{tiempoRelativo(n.fechaCreacionUtc)}</div>
+                          {accionable && <div style={{ fontFamily: T.fontMono, fontSize: 9.5, color: T.orange, fontWeight: 700, letterSpacing: 0.5 }}>VER →</div>}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div style={{ padding: "16px 4px", textAlign: "center", fontSize: 12.5, color: T.g500, fontFamily: T.fontUI }}>Sin notificaciones</div>
               )}
@@ -220,6 +260,135 @@ export function UserMenu({
           </div>
         </div>
       )}
+
+      {prestamoId && (
+        <PrestamoModal
+          idPrestamo={prestamoId}
+          onClose={() => setPrestamoId(null)}
+          onResuelto={async () => {
+            setPrestamoId(null);
+            await recargarNotifs();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Popup para aceptar/rechazar una solicitud de préstamo desde la notificación.
+function PrestamoModal({
+  idPrestamo,
+  onClose,
+  onResuelto,
+}: {
+  idPrestamo: string;
+  onClose: () => void;
+  onResuelto: () => void;
+}) {
+  const [det, setDet] = useState<PrestamoDetalle | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/prestamos/${idPrestamo}`, { cache: "no-store" });
+        const data = await res.json();
+        if (!activo) return;
+        if (res.ok) setDet(data as PrestamoDetalle);
+        else setError(data?.message ?? "No se pudo cargar la solicitud");
+      } catch {
+        if (activo) setError("No se pudo contactar al servidor");
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [idPrestamo]);
+
+  const responder = async (aceptar: boolean) => {
+    setEnviando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/prestamos/${idPrestamo}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aceptar }),
+      });
+      if (res.ok) onResuelto();
+      else {
+        const data = await res.json();
+        setError(data?.message ?? "No se pudo procesar la solicitud");
+        setEnviando(false);
+      }
+    } catch {
+      setError("No se pudo contactar al servidor");
+      setEnviando(false);
+    }
+  };
+
+  const n = det?.colaboradores.length ?? 0;
+  const resuelto = det && det.estado !== "Pendiente";
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "100%", maxWidth: 340, background: T.white, color: T.ink, borderRadius: T.rCard, boxShadow: "0 16px 48px rgba(0,0,0,0.35)", overflow: "hidden", fontFamily: T.fontUI }}
+      >
+        {/* Header */}
+        <div style={{ padding: "14px 16px", background: T.ink, color: T.white, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: 2, fontWeight: 700, color: T.lime }}>SOLICITUD DE PRÉSTAMO</div>
+          <button onClick={onClose} aria-label="Cerrar" style={{ width: 28, height: 28, borderRadius: 14, border: `1px solid ${T.g800}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke={T.white} strokeWidth="1.6" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          {!det && !error && <div style={{ fontSize: 12, color: T.g500, fontFamily: T.fontMono }}>Cargando…</div>}
+          {error && <div style={{ fontSize: 12.5, color: T.red, marginBottom: 8 }}>{error}</div>}
+
+          {det && (
+            <>
+              <div style={{ fontSize: 12, color: T.g700 }}>
+                De <span style={{ fontWeight: 700, color: T.ink }}>{det.cuadrillaOrigen}</span>
+                {det.solicitante ? ` · ${det.solicitante}` : ""}
+              </div>
+              <div style={{ fontFamily: T.fontMono, fontSize: 12, color: T.ink, marginTop: 6 }}>
+                {det.fechaDesde} → {det.fechaHasta}
+              </div>
+              <div style={{ fontSize: 12.5, color: T.g700, marginTop: 6, lineHeight: 1.4 }}>{det.motivo}</div>
+
+              <CapsLabel style={{ margin: "14px 0 6px" }}>{n} {n === 1 ? "colaborador" : "colaboradores"}</CapsLabel>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {det.colaboradores.map((c) => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.paper, border: `1px solid ${T.g200}`, borderRadius: 8 }}>
+                    <Avatar initials={initials(c.nombre)} size={28} />
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{c.nombre}</div>
+                  </div>
+                ))}
+              </div>
+
+              {resuelto ? (
+                <div style={{ marginTop: 14, padding: "10px 12px", background: T.g100, borderRadius: 8, fontFamily: T.fontMono, fontSize: 11, color: T.g700, fontWeight: 600 }}>
+                  Esta solicitud ya fue {det.estado.toLowerCase()}.
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                  <Btn kind="ghost" onClick={() => responder(false)} disabled={enviando}>Rechazar</Btn>
+                  <Btn kind="primary" full onClick={() => responder(true)} disabled={enviando}>
+                    {enviando ? "Procesando…" : "Aceptar e integrar"}
+                  </Btn>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -43,6 +43,7 @@ export default function IngenieroPage() {
       nombre={usuario?.nombre ?? "Ingeniero Residente"}
       proyectos={proyectos}
       onLogout={() => logout()}
+      onProject={(code) => router.push(`/ingeniero/proyecto/${code}`)}
     />
   );
 }

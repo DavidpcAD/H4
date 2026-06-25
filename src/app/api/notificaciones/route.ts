@@ -9,6 +9,7 @@ interface NotifRow {
   tipo: string;
   titulo: string;
   mensaje: string | null;
+  idReferencia: string | null;
   esLeida: boolean;
   fechaCreacionUtc: Date;
 }
@@ -27,7 +28,8 @@ export async function GET() {
       .query<NotifRow>(`
         SELECT TOP 30
                CAST(idNotificacion AS NVARCHAR(20)) AS id,
-               tipo, titulo, mensaje, esLeida,
+               tipo, titulo, mensaje,
+               CAST(idReferencia AS NVARCHAR(20)) AS idReferencia, esLeida,
                fechaCreacion AS fechaCreacionUtc
         FROM dbo.Notificacion
         WHERE idUsuarioDestino = @uid
@@ -39,6 +41,7 @@ export async function GET() {
       tipo: n.tipo,
       titulo: n.titulo,
       mensaje: n.mensaje,
+      idReferencia: n.idReferencia,
       esLeida: n.esLeida,
       fechaCreacionUtc: n.fechaCreacionUtc.toISOString(),
     }));

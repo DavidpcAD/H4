@@ -13,10 +13,12 @@ export function ScreenIngeniero({
   nombre = "Ing. José Vargas",
   proyectos,
   onLogout,
+  onProject,
 }: {
   nombre?: string;
   proyectos?: ProjectStat[];
   onLogout?: () => void;
+  onProject?: (code: string) => void;
 }) {
   const cardBg = T.white;
   const border = T.g200;
@@ -63,7 +65,7 @@ export function ScreenIngeniero({
       {/* Lista de proyectos */}
       <div className="mk-scroll" style={{ flex: 1, overflowY: "auto", padding: "4px 14px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
         {stats.map((s) => (
-          <ProjectCard key={s.code} stat={s} project={projectOf(s)} cardBg={cardBg} border={border} />
+          <ProjectCard key={s.code} stat={s} project={projectOf(s)} cardBg={cardBg} border={border} onClick={onProject} />
         ))}
         <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.g500, textAlign: "center", letterSpacing: 1 }}>
           — Tap en un proyecto para ver casas activas —
@@ -84,7 +86,7 @@ function projectOf(s: ProjectStat): Project {
   };
 }
 
-function ProjectCard({ stat, project, cardBg, border }: { stat: ProjectStat; project: Project; cardBg: string; border: string }) {
+function ProjectCard({ stat, project, cardBg, border, onClick }: { stat: ProjectStat; project: Project; cardBg: string; border: string; onClick?: (code: string) => void }) {
   const isInactive = stat.workersToday === 0;
   const hasExpected = typeof stat.workersExpected === "number";
   const delta = hasExpected ? stat.workersToday - (stat.workersExpected as number) : 0;
@@ -92,6 +94,7 @@ function ProjectCard({ stat, project, cardBg, border }: { stat: ProjectStat; pro
 
   return (
     <div
+      onClick={isInactive ? undefined : () => onClick?.(stat.code)}
       style={{
         background: cardBg, border: `1px solid ${border}`, borderLeft: `3px solid ${project.color}`,
         borderRadius: T.rCard, padding: "14px 16px", cursor: isInactive ? "default" : "pointer",
