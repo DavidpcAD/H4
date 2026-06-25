@@ -7,6 +7,8 @@ export interface CrewWorker {
   id: string;
   name: string;
   dot: CrewDot;
+  prestado?: boolean; // miembro prestado de otra cuadrilla (entrante, temporal)
+  prestadoSaliente?: boolean; // miembro propio prestado a otra cuadrilla (activo allá)
   house: string | null;
   loc: string;
   task: string;

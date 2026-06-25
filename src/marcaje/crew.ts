@@ -8,6 +8,8 @@ export interface MiembroEstado {
   id: number;
   nombre: string;
   estado: CrewDot; // 'g' activo · 'b' prestado · 'x' sin marcar
+  prestado?: boolean; // miembro prestado de otra cuadrilla (entrante, temporal)
+  prestadoSaliente?: boolean; // miembro propio prestado a otra cuadrilla (activo allá)
   obra: string | null;
   subCodigo: string | null;
   subNombre: string | null;
@@ -69,6 +71,8 @@ export function toCrew(m: MiembroEstado): CrewWorker {
       id: String(m.id),
       name: m.nombre,
       dot: "x",
+      prestado: m.prestado ?? false,
+      prestadoSaliente: m.prestadoSaliente ?? false,
       house: m.obra,
       loc: m.obra ?? "Sin asignación",
       task,
@@ -82,6 +86,8 @@ export function toCrew(m: MiembroEstado): CrewWorker {
     id: String(m.id),
     name: m.nombre,
     dot: m.estado,
+    prestado: m.prestado ?? false,
+    prestadoSaliente: m.prestadoSaliente ?? false,
     house: m.obra,
     loc,
     task,

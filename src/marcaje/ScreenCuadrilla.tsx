@@ -5,7 +5,7 @@
 import { useState } from "react";
 import "./marcaje.css";
 import { T } from "./tokens";
-import { CREW } from "./mock";
+import { CREW, type CrewWorker } from "./mock";
 import { toCrewList, type MiembroEstado } from "./crew";
 import { Btn, HouseWorkerRow, LiveDot, StatCard, UserMenu, WorkerRow } from "./ui";
 
@@ -34,13 +34,22 @@ export function ScreenCuadrilla({
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"flat" | "byHouse">("flat");
-  const toggle = (id: string) =>
+
+  // No se puede reasignar/prestar a quien está comprometido en un préstamo:
+  // 'b' = prestado a otra cuadrilla (activo allá), o prestado entrante (temporal).
+  // Evita conflictos (doble asignación, re-préstamo).
+  const bloqueado = (w: CrewWorker) => w.dot === "b" || !!w.prestado || !!w.prestadoSaliente;
+
+  const toggle = (id: string) => {
+    const w = crew.find((x) => x.id === id);
+    if (w && bloqueado(w)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
 
   const counts = {
     active: crew.filter((w) => w.dot === "g").length,
@@ -111,7 +120,7 @@ export function ScreenCuadrilla({
       <div className="mk-scroll" style={{ flex: 1, overflowY: "auto", padding: "0 14px 96px", display: "flex", flexDirection: "column", gap: view === "byHouse" ? 14 : 8 }}>
         {view === "flat" &&
           crew.map((w) => (
-            <WorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={() => toggle(w.id)} />
+            <WorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={bloqueado(w) ? undefined : () => toggle(w.id)} />
           ))}
 
         {view === "byHouse" && (
@@ -150,12 +159,12 @@ export function ScreenCuadrilla({
                               {task || "Sin subpartida"}
                             </div>
                             {ws.map((w) => (
-                              <HouseWorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={() => toggle(w.id)} />
+                              <HouseWorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={bloqueado(w) ? undefined : () => toggle(w.id)} />
                             ))}
                           </div>
                         ))
                       : workers.map((w) => (
-                          <HouseWorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={() => toggle(w.id)} />
+                          <HouseWorkerRow key={w.id} w={w} selected={selected.has(w.id)} onClick={bloqueado(w) ? undefined : () => toggle(w.id)} />
                         ))}
                   </div>
                 </div>

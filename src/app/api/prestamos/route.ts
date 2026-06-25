@@ -37,6 +37,22 @@ export async function POST(req: Request) {
     if (!origen) return bad("El usuario no es jefe de una cuadrilla", 400);
     if (origen.idCuadrilla === idCuadrillaDestino) return bad("La cuadrilla destino debe ser distinta a la propia", 400);
 
+    // Conflicto: no se puede prestar a un colaborador que ya está prestado
+    // (miembro temporal en otra cuadrilla) — evita doble asignación/préstamo.
+    const idsTable = colaboradorIds.map((x) => `(${Number(x)})`).join(",");
+    const conf = await pool.request().query<{ idColaborador: number; nombre: string }>(`
+      SELECT DISTINCT m.IDCol AS idColaborador, col.calcNombreCompleto AS nombre
+      FROM dbo.CuadrillaMiembro m
+      JOIN dbo.Colaborador col ON col.idColaborador = m.IDCol
+      JOIN (VALUES ${idsTable}) AS sel(id) ON sel.id = m.IDCol
+      WHERE m.Activo = 1 AND m.FechaSalida IS NOT NULL
+        AND m.FechaSalida >= CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'Central America Standard Time' AS DATE)
+    `);
+    if (conf.recordset.length > 0) {
+      const nombres = conf.recordset.map((c) => c.nombre.trim()).join(", ");
+      return bad(`No se puede prestar: ya está(n) en otro préstamo activo: ${nombres}`, 409);
+    }
+
     const tx = new sql.Transaction(pool);
     await tx.begin();
     try {

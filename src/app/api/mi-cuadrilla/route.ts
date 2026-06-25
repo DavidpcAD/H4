@@ -10,6 +10,8 @@ interface MiembroRow {
   id: number;
   nombre: string;
   estado: "g" | "b" | "x";
+  prestadoEntrante: number; // 1 = miembro prestado de otra cuadrilla (temporal)
+  prestadoSaliente: number; // 1 = miembro propio prestado a otra cuadrilla (activo allá)
   obra: string | null;
   subCodigo: string | null;
   subNombre: string | null;
@@ -40,6 +42,13 @@ export async function GET() {
                    WHEN t.idCuadrilla <> c.IDCuadrilla THEN 'b'
                    ELSE 'g'
                END AS estado,
+               CASE WHEN m.FechaSalida IS NOT NULL THEN 1 ELSE 0 END AS prestadoEntrante,
+               CASE WHEN EXISTS (
+                   SELECT 1 FROM dbo.CuadrillaMiembro m2
+                   WHERE m2.IDCol = col.idColaborador AND m2.IDCuadrilla <> c.IDCuadrilla
+                     AND m2.Activo = 1 AND m2.FechaSalida IS NOT NULL
+                     AND m2.FechaSalida >= CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'Central America Standard Time' AS DATE)
+               ) THEN 1 ELSE 0 END AS prestadoSaliente,
                -- obra/subpartida: del tramo abierto, o si no marcó, de la asignación vigente
                COALESCE(ot.numeroObra, ov.numeroObra) AS obra,
                COALESCE(spt.codigo, spv.codigo) AS subCodigo,
@@ -50,7 +59,10 @@ export async function GET() {
                CONVERT(CHAR(5), c.horaFinJornada, 108) AS horaFin
         FROM dbo.Usuario u
         JOIN dbo.Cuadrilla c ON c.IDEncargado = u.idColaborador
+        -- Miembros activos; los prestados (FechaSalida) salen al terminar el rango.
         JOIN dbo.CuadrillaMiembro m ON m.IDCuadrilla = c.IDCuadrilla AND m.Activo = 1
+            AND (m.FechaSalida IS NULL
+                 OR m.FechaSalida >= CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'Central America Standard Time' AS DATE))
         JOIN dbo.Colaborador col ON col.idColaborador = m.IDCol
         LEFT JOIN dbo.AsignacionTramo t ON t.idColaborador = col.idColaborador AND t.horaFinUtc IS NULL
         LEFT JOIN dbo.ObraSubpartida ost ON ost.idObraSubpartida = t.idObraSubpartida
@@ -71,6 +83,8 @@ export async function GET() {
       id: x.id,
       nombre: x.nombre,
       estado: x.estado,
+      prestado: x.prestadoEntrante === 1,
+      prestadoSaliente: x.prestadoSaliente === 1,
       obra: x.obra,
       subCodigo: x.subCodigo,
       subNombre: x.subNombre,

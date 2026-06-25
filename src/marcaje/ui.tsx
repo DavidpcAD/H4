@@ -275,7 +275,18 @@ export function UserMenu({
   );
 }
 
+interface ObraSubItem {
+  idObraSubpartida: string;
+  proyecto: string | null;
+  proyectoNombre: string | null;
+  numeroObra: string;
+  subCodigo: string;
+  subNombre: string;
+}
+
 // Popup para aceptar/rechazar una solicitud de préstamo desde la notificación.
+// Al aceptar pasa al paso de asignación (condominio/casa/subpartida) para que
+// los prestados puedan marcar.
 function PrestamoModal({
   idPrestamo,
   onClose,
@@ -288,6 +299,13 @@ function PrestamoModal({
   const [det, setDet] = useState<PrestamoDetalle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [paso, setPaso] = useState<"revisar" | "asignar">("revisar");
+
+  // Catálogo de obra-subpartidas abiertas (para los selects de asignación).
+  const [items, setItems] = useState<ObraSubItem[]>([]);
+  const [proy, setProy] = useState("");
+  const [obra, setObra] = useState("");
+  const [osId, setOsId] = useState("");
 
   useEffect(() => {
     let activo = true;
@@ -300,6 +318,13 @@ function PrestamoModal({
         else setError(data?.message ?? "No se pudo cargar la solicitud");
       } catch {
         if (activo) setError("No se pudo contactar al servidor");
+      }
+      try {
+        const res = await fetch("/api/obra-subpartidas", { cache: "no-store" });
+        const data = await res.json();
+        if (activo && res.ok) setItems(data.items as ObraSubItem[]);
+      } catch {
+        // catálogo no disponible
       }
     })();
     return () => {
@@ -316,8 +341,11 @@ function PrestamoModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ aceptar }),
       });
-      if (res.ok) onResuelto();
-      else {
+      if (res.ok) {
+        setEnviando(false);
+        if (aceptar) setPaso("asignar");
+        else onResuelto();
+      } else {
         const data = await res.json();
         setError(data?.message ?? "No se pudo procesar la solicitud");
         setEnviando(false);
@@ -328,8 +356,35 @@ function PrestamoModal({
     }
   };
 
+  const asignar = async () => {
+    if (!osId) return;
+    setEnviando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/prestamos/${idPrestamo}/asignar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idObraSubpartida: Number(osId) }),
+      });
+      if (res.ok) onResuelto();
+      else {
+        const data = await res.json();
+        setError(data?.message ?? "No se pudo asignar");
+        setEnviando(false);
+      }
+    } catch {
+      setError("No se pudo contactar al servidor");
+      setEnviando(false);
+    }
+  };
+
   const n = det?.colaboradores.length ?? 0;
-  const resuelto = det && det.estado !== "Pendiente";
+  const resuelto = det && det.estado !== "Pendiente" && paso === "revisar";
+
+  // Opciones de los selects en cascada (condominio → casa → subpartida).
+  const proyectos = [...new Map(items.filter((i) => i.proyecto).map((i) => [i.proyecto!, i.proyectoNombre ?? i.proyecto!])).entries()];
+  const obrasDe = [...new Set(items.filter((i) => i.proyecto === proy).map((i) => i.numeroObra))];
+  const subsDe = items.filter((i) => i.proyecto === proy && i.numeroObra === obra);
 
   return (
     <div
@@ -342,7 +397,9 @@ function PrestamoModal({
       >
         {/* Header */}
         <div style={{ padding: "14px 16px", background: T.ink, color: T.white, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: 2, fontWeight: 700, color: T.lime }}>SOLICITUD DE PRÉSTAMO</div>
+          <div style={{ fontFamily: T.fontMono, fontSize: 10, letterSpacing: 2, fontWeight: 700, color: T.lime }}>
+            {paso === "asignar" ? "ASIGNAR PRESTADOS" : "SOLICITUD DE PRÉSTAMO"}
+          </div>
           <button onClick={onClose} aria-label="Cerrar" style={{ width: 28, height: 28, borderRadius: 14, border: `1px solid ${T.g800}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke={T.white} strokeWidth="1.6" strokeLinecap="round" /></svg>
           </button>
@@ -352,7 +409,7 @@ function PrestamoModal({
           {!det && !error && <div style={{ fontSize: 12, color: T.g500, fontFamily: T.fontMono }}>Cargando…</div>}
           {error && <div style={{ fontSize: 12.5, color: T.red, marginBottom: 8 }}>{error}</div>}
 
-          {det && (
+          {det && paso === "revisar" && (
             <>
               <div style={{ fontSize: 12, color: T.g700 }}>
                 De <span style={{ fontWeight: 700, color: T.ink }}>{det.cuadrillaOrigen}</span>
@@ -385,6 +442,34 @@ function PrestamoModal({
                   </Btn>
                 </div>
               )}
+            </>
+          )}
+
+          {det && paso === "asignar" && (
+            <>
+              <div style={{ fontSize: 12.5, color: T.g700, lineHeight: 1.4 }}>
+                Asigná a {n === 1 ? "el colaborador" : `los ${n} colaboradores`} a una casa y subpartida para que pueda{n === 1 ? "" : "n"} marcar.
+              </div>
+
+              <Field label="Condominio">
+                <Select value={proy} onChange={(v) => { setProy(v); setObra(""); setOsId(""); }} placeholder="Elegí el condominio"
+                  options={proyectos.map(([code, nombre]) => ({ value: code, label: nombre }))} />
+              </Field>
+              <Field label="Casa">
+                <Select mono value={obra} onChange={(v) => { setObra(v); setOsId(""); }} placeholder="Elegí la casa"
+                  options={obrasDe.map((o) => ({ value: o, label: o }))} />
+              </Field>
+              <Field label="Subpartida">
+                <Select mono focus value={osId} onChange={setOsId} placeholder="Elegí la subpartida"
+                  options={subsDe.map((i) => ({ value: i.idObraSubpartida, label: `${i.subCodigo} — ${i.subNombre}` }))} />
+              </Field>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <Btn kind="ghost" onClick={onResuelto} disabled={enviando}>Luego</Btn>
+                <Btn kind="primary" full onClick={asignar} disabled={enviando || !osId}>
+                  {enviando ? "Asignando…" : "Asignar"}
+                </Btn>
+              </div>
             </>
           )}
         </div>
@@ -434,7 +519,12 @@ export function WorkerRow({ w, selected = false, onClick, dense = false }: { w: 
     >
       <StatusDot status={w.dot} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: T.fontUI, fontWeight: 700, fontSize: 14, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontFamily: T.fontUI, fontWeight: 700, fontSize: 14, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</span>
+          {w.prestado && (
+            <span style={{ flexShrink: 0, padding: "1px 6px", background: T.blueBg, color: T.blue, border: `1px solid ${T.blue}`, borderRadius: 4, fontFamily: T.fontMono, fontSize: 8.5, fontWeight: 800, letterSpacing: 0.6 }}>PRESTADO</span>
+          )}
+        </div>
         <div style={{ fontFamily: T.fontMono, fontSize: 11, color: T.g700, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {w.loc}{w.task ? ` · ${w.task}` : ""}
         </div>
@@ -468,8 +558,11 @@ export function HouseWorkerRow({ w, selected = false, onClick }: { w: CrewWorker
       }}
     >
       <StatusDot status={w.dot} />
-      <div style={{ flex: 1, minWidth: 0, fontFamily: T.fontUI, fontWeight: 600, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {w.name}
+      <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontFamily: T.fontUI, fontWeight: 600, fontSize: 13.5, color: T.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</span>
+        {w.prestado && (
+          <span style={{ flexShrink: 0, padding: "1px 5px", background: T.blueBg, color: T.blue, border: `1px solid ${T.blue}`, borderRadius: 4, fontFamily: T.fontMono, fontSize: 8, fontWeight: 800, letterSpacing: 0.5 }}>PRESTADO</span>
+        )}
       </div>
       <div style={{ fontFamily: T.fontMono, fontSize: 11, fontWeight: 600, color: T.g700, letterSpacing: -0.2, flexShrink: 0 }}>
         {w.dur}
